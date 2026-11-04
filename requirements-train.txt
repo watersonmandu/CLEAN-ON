@@ -1,0 +1,9 @@
+# 모델 학습(train.py) 및 ONNX 변환(convert_to_onnx.py) 시에만 필요한 개발/학습용 의존성
+# Render 웹 배포 서버에는 불필요합니다 (배포 시 requirements.txt만 사용).
+torch>=2.3
+torchvision>=0.18
+onnx>=1.15
+onnxruntime>=1.17
+pillow>=10,<13
+numpy>=1.24,<3
+

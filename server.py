@@ -1,22 +1,30 @@
+import os
 import sys
+import json
 from pathlib import Path
 from io import BytesIO
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image, UnidentifiedImageError
-import torch
-from torchvision import models, transforms
+import numpy as np
+import onnxruntime as ort
 
 BASE = Path(__file__).resolve().parent
 app = FastAPI(title='CLEAN:ON API')
-MODEL_PATH = BASE / 'bathroom_model.pth'
+MODEL_PATH = BASE / 'bathroom_model.onnx'
+META_PATH = BASE / 'bathroom_model_meta.json'
 
-# 모델 및 전처리 초기화
+# 모델 및 전처리 전역 상태
 model = None
 model_status = 'not_loaded'
 model_error_msg = None
 classes = ['black_spots', 'clean']
 preprocess = None
+input_name = None
+output_name = None
+image_size = (224, 224)
+mean_vals = [0.485, 0.456, 0.406]
+std_vals = [0.229, 0.224, 0.225]
 
 # 재질별 상세 청소 가이드 정의
 CLEANING_GUIDES = {
@@ -61,60 +69,104 @@ CLEANING_GUIDES = {
     }
 }
 
+def preprocess_image(pic: Image.Image) -> np.ndarray:
+    """Pillow 및 NumPy를 사용한 ResNet18 정규화 전처리 파이프라인 (torchvision 미사용)"""
+    w, h = (image_size[1], image_size[0]) if isinstance(image_size, (list, tuple)) else (image_size, image_size)
+    resample_filter = getattr(Image, 'Resampling', Image).BILINEAR
+    resized = pic.resize((w, h), resample_filter)
+    
+    # 0~1 범위 float32 배열로 변환
+    arr = np.asarray(resized, dtype=np.float32) / 255.0
+    
+    # (H, W, C) -> (C, H, W)
+    arr = np.transpose(arr, (2, 0, 1))
+    
+    # 채널별 Mean, Std 표준화
+    m = np.asarray(mean_vals, dtype=np.float32)[:, None, None]
+    s = np.asarray(std_vals, dtype=np.float32)[:, None, None]
+    arr = (arr - m) / s
+    
+    # 배치 차원 추가: (1, 3, H, W)
+    return np.expand_dims(arr, axis=0).astype(np.float32)
+
 def load_ai_model():
+    """ONNX Runtime CPU 세션을 초기화하고 메타데이터를 로드합니다."""
     global model, model_status, model_error_msg, classes, preprocess
+    global input_name, output_name, image_size, mean_vals, std_vals
+
     if not MODEL_PATH.exists():
         model_status = 'not_found'
-        model_error_msg = f'모델 파일을 찾을 수 없습니다: {MODEL_PATH.name}'
+        model_error_msg = f'ONNX 모델 파일을 찾을 수 없습니다: {MODEL_PATH.name} (convert_to_onnx.py 실행 필요)'
         print(f'[CLEAN:ON] {model_error_msg}')
         return
 
     try:
-        # Colab에서 저장된 체크포인트 로드
-        checkpoint = torch.load(MODEL_PATH, map_location='cpu', weights_only=True)
-        
-        # 체크포인트 내부 메타데이터 추출
-        if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
-            state_dict = checkpoint['model_state_dict']
-            loaded_classes = checkpoint.get('classes', ['black_spots', 'clean'])
-            img_size = checkpoint.get('image_size', 224)
-            mean = checkpoint.get('mean', [0.485, 0.456, 0.406])
-            std = checkpoint.get('std', [0.229, 0.224, 0.225])
-        elif isinstance(checkpoint, dict):
-            # 혹시 state_dict만 직접 저장된 dict인 경우
-            state_dict = checkpoint
-            loaded_classes = ['black_spots', 'clean']
-            img_size = 224
-            mean = [0.485, 0.456, 0.406]
-            std = [0.229, 0.224, 0.225]
-        else:
-            raise ValueError('체크포인트 형식이 유효하지 않습니다.')
+        # 기본 메타데이터 설정 (black_spots, clean)
+        classes = ['black_spots', 'clean']
+        image_size = (224, 224)
+        mean_vals = [0.485, 0.456, 0.406]
+        std_vals = [0.229, 0.224, 0.225]
 
-        classes = list(loaded_classes)
+        # 1. JSON 메타데이터 파일 확인
+        if META_PATH.exists():
+            try:
+                with open(META_PATH, 'r', encoding='utf-8') as f:
+                    meta = json.load(f)
+                    if 'classes' in meta:
+                        classes = list(meta['classes'])
+                    if 'image_size' in meta:
+                        image_size = tuple(meta['image_size']) if isinstance(meta['image_size'], list) else (meta['image_size'], meta['image_size'])
+                    if 'mean' in meta:
+                        mean_vals = list(meta['mean'])
+                    if 'std' in meta:
+                        std_vals = list(meta['std'])
+            except Exception as meta_e:
+                print(f'[CLEAN:ON] 메타데이터 로드 경고: {meta_e}')
 
-        # ResNet18 생성 및 최종 fc 계층을 클래스 수에 맞게 설정
-        net = models.resnet18(weights=None)
-        net.fc = torch.nn.Linear(net.fc.in_features, len(classes))
-        net.load_state_dict(state_dict)
-        net.eval()
-        model = net
+        # 2. Render 512MB RAM 무료 환경에 최적화된 ONNX Runtime 세션 옵션 구성
+        sess_options = ort.SessionOptions()
+        sess_options.intra_op_num_threads = 1
+        sess_options.inter_op_num_threads = 1
+        sess_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+        sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        # 메모리 아레나 할당 억제로 RAM 사용량 최소화
+        sess_options.enable_cpu_mem_arena = False
 
-        # 체크포인트의 image_size, mean, std로 전처리 파이프라인 구성
-        target_size = (img_size, img_size) if isinstance(img_size, int) else tuple(img_size)
-        preprocess = transforms.Compose([
-            transforms.Resize(target_size),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std=std)
-        ])
+        session = ort.InferenceSession(
+            str(MODEL_PATH),
+            sess_options=sess_options,
+            providers=['CPUExecutionProvider']
+        )
+
+        # 3. 모델 자체에 주입된 metadata_props 확인 (있을 경우 보강)
+        try:
+            custom_meta = session.get_modelmeta().custom_metadata_map
+            if 'classes' in custom_meta:
+                classes = list(json.loads(custom_meta['classes']))
+            if 'image_size' in custom_meta:
+                sz = json.loads(custom_meta['image_size'])
+                image_size = tuple(sz) if isinstance(sz, list) else (sz, sz)
+            if 'mean' in custom_meta:
+                mean_vals = list(json.loads(custom_meta['mean']))
+            if 'std' in custom_meta:
+                std_vals = list(json.loads(custom_meta['std']))
+        except Exception:
+            pass
+
+        input_name = session.get_inputs()[0].name
+        output_name = session.get_outputs()[0].name
+        preprocess = preprocess_image
+        model = session
 
         model_status = 'ready'
         model_error_msg = None
-        print(f'[CLEAN:ON] 모델 로드 완료 (ResNet18, classes={classes}, size={target_size})')
+        print(f'[CLEAN:ON] ONNX 모델 로드 완료 (ResNet18 ONNX Runtime CPU, classes={classes}, size={image_size})')
     except Exception as e:
         model = None
+        preprocess = None
         model_status = 'error'
         model_error_msg = str(e)
-        print(f'[CLEAN:ON] 모델 로드 실패: {e}')
+        print(f'[CLEAN:ON] ONNX 모델 로드 실패: {e}')
 
 # 서버 기동 시 모델 로드
 load_ai_model()
@@ -185,16 +237,19 @@ async def analyze(image: UploadFile = File(...), material: str = Form(...)):
             'disclaimer': '데모 모드: 실제 사진 분석이 수행되지 않았으며 일반 참고용 가이드입니다.'
         }
 
-    # 6. 실제 AI 모델 추론 수행
+    # 6. 실제 ONNX 모델 추론 수행
     try:
-        input_tensor = preprocess(pic).unsqueeze(0)
-        with torch.inference_mode():
-            logits = model(input_tensor)
-            probs = torch.softmax(logits, dim=1)[0]
-            score_tensor, idx_tensor = torch.max(probs, dim=0)
-            score = float(score_tensor.item())
-            idx = int(idx_tensor.item())
-            pred_class = classes[idx]
+        input_tensor = preprocess(pic)
+        ort_inputs = {input_name: input_tensor}
+        outputs = model.run([output_name], ort_inputs)
+        logits = outputs[0][0]
+
+        # 수치 안정성을 고려한 Softmax 계산
+        exp_logits = np.exp(logits - np.max(logits))
+        probs = exp_logits / np.sum(exp_logits)
+        idx = int(np.argmax(probs))
+        score = float(probs[idx])
+        pred_class = classes[idx]
 
         # 검은 점상 오염 vs 정상 상태 구분
         is_black_spots = (pred_class == 'black_spots')
@@ -250,4 +305,6 @@ async def analyze(image: UploadFile = File(...), material: str = Form(...)):
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run('server:app', host='127.0.0.1', port=8000, reload=True)
+    port = int(os.environ.get('PORT', 8000))
+    # Render 무료 인스턴스(512MB RAM) 최적화: single worker, 불필요한 reload 비활성화
+    uvicorn.run('server:app', host='0.0.0.0', port=port, reload=False, workers=1)
