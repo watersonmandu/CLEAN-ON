@@ -1,0 +1,1117 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CLEAN:ON | 욕실 오염 분석 & 안전 청소 가이드</title>
+  <meta name="description" content="AI 비전 모델(ResNet18) 기반 욕실 흑색 점상 오염 분석 및 실리콘·타일·줄눈 재질 맞춤 안전 청소 가이드">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --primary-soft: #e0f2fe;
+      --primary-glow: rgba(2, 132, 199, 0.18);
+      --bg-gradient: linear-gradient(145deg, #f0f7fc 0%, #e6f1f8 50%, #edf6fc 100%);
+      --surface: #ffffff;
+      --surface-glass: rgba(255, 255, 255, 0.88);
+      --border: #d4e3ef;
+      --border-focus: #38bdf8;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-light: #64748b;
+      --success-bg: #ecfdf5;
+      --success-border: #a7f3d0;
+      --success-text: #065f46;
+      --warning-bg: #fffbeb;
+      --warning-border: #fde68a;
+      --warning-text: #92400e;
+      --danger-bg: #fef2f2;
+      --danger-border: #fecaca;
+      --danger-text: #991b1b;
+      --card-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.03);
+      --card-shadow-hover: 0 20px 30px -10px rgba(2, 132, 199, 0.12);
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+      --transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 상단 헤더 */
+    header {
+      background: linear-gradient(135deg, #0369a1 0%, #0284c7 60%, #0ea5e9 100%);
+      color: white;
+      padding: 32px 24px;
+      box-shadow: 0 4px 20px rgba(2, 132, 199, 0.25);
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      top: -40px;
+      right: -40px;
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .header-content {
+      max-width: 860px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .brand-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      background: rgba(255, 255, 255, 0.22);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-desc {
+      font-size: 0.95rem;
+      opacity: 0.92;
+      font-weight: 400;
+    }
+
+    .model-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.25);
+      backdrop-filter: blur(8px);
+      padding: 6px 14px;
+      border-radius: 30px;
+      font-size: 0.82rem;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #34d399;
+      box-shadow: 0 0 8px #34d399;
+      animation: pulseDot 2s infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.9); }
+    }
+
+    /* 메인 컨테이너 */
+    main {
+      max-width: 860px;
+      width: 100%;
+      margin: 32px auto 40px;
+      padding: 0 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* 패널 카드 공통 */
+    .panel {
+      background: var(--surface-glass);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      box-shadow: var(--card-shadow);
+      transition: var(--transition);
+    }
+
+    .panel:hover {
+      box-shadow: var(--card-shadow-hover);
+      border-color: rgba(2, 132, 199, 0.28);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .panel-title {
+      font-size: 1.22rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .panel-subtitle {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* 1단계: 사진 업로드 영역 */
+    .upload-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 2px dashed #93c5fd;
+      border-radius: var(--radius-md);
+      padding: 36px 20px;
+      text-align: center;
+      cursor: pointer;
+      background: linear-gradient(180deg, #f8fbff 0%, #edf5fc 100%);
+      transition: var(--transition);
+      position: relative;
+    }
+
+    .upload-box:hover, .upload-box.dragover {
+      border-color: var(--primary);
+      background: #e0f2fe;
+      transform: translateY(-2px);
+    }
+
+    .upload-icon {
+      width: 52px;
+      height: 52px;
+      margin-bottom: 12px;
+      color: var(--primary);
+      background: white;
+      padding: 12px;
+      border-radius: 50%;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
+    }
+
+    .upload-main-text {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .upload-sub-text {
+      font-size: 0.85rem;
+      color: var(--text-light);
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    /* 미리보기 */
+    .preview-container {
+      position: relative;
+      margin-top: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #0f172a08;
+      border-radius: var(--radius-md);
+      padding: 16px;
+      border: 1px solid var(--border);
+    }
+
+    img#preview {
+      max-width: 100%;
+      max-height: 320px;
+      border-radius: var(--radius-sm);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      object-fit: contain;
+    }
+
+    .preview-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .btn-secondary {
+      background: white;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .btn-secondary:hover {
+      background: #f1f5f9;
+      color: var(--danger-text);
+      border-color: var(--danger-border);
+    }
+
+    /* 에러 메시지 */
+    .error-msg {
+      color: var(--danger-text);
+      background: var(--danger-bg);
+      border: 1px solid var(--danger-border);
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 2단계: 재질 선택 */
+    .choices-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 600px) {
+      .choices-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .choice-card {
+      position: relative;
+      border: 2px solid var(--border);
+      background: white;
+      border-radius: var(--radius-md);
+      padding: 18px 14px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      user-select: none;
+    }
+
+    .choice-card input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .choice-card:hover {
+      border-color: #7dd3fc;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.08);
+    }
+
+    .choice-card:has(input:checked) {
+      background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+      border-color: var(--primary);
+      box-shadow: 0 4px 16px rgba(2, 132, 199, 0.2);
+    }
+
+    .choice-card:has(input:checked) .choice-title {
+      color: var(--primary-hover);
+      font-weight: 700;
+    }
+
+    .choice-icon {
+      font-size: 1.8rem;
+    }
+
+    .choice-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .choice-desc {
+      font-size: 0.78rem;
+      color: var(--text-light);
+      line-height: 1.35;
+    }
+
+    /* 분석 버튼 */
+    .btn-primary {
+      width: 100%;
+      margin-top: 24px;
+      padding: 16px 24px;
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: white;
+      font-family: inherit;
+      font-size: 1.08rem;
+      font-weight: 700;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.45);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn-primary:disabled {
+      background: #cbd5e1;
+      color: #94a3b8;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    /* 로딩 스피너 */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* 3단계: 결과 화면 */
+    #result.panel {
+      border-left: 6px solid var(--primary);
+      animation: slideIn 0.35s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-badge-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    .mode-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 20px;
+    }
+
+    .mode-tag.model {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+    }
+
+    .mode-tag.demo {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
+
+    .mode-tag.error {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+
+    /* 진단 결과 카드 */
+    .diagnosis-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 20px;
+      border-radius: var(--radius-md);
+      margin-bottom: 24px;
+    }
+
+    .diagnosis-card.black-spots {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+    }
+
+    .diagnosis-card.clean {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+
+    .diagnosis-card.demo {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+    }
+
+    .diagnosis-icon {
+      font-size: 2.2rem;
+      line-height: 1;
+    }
+
+    .diagnosis-details {
+      flex: 1;
+    }
+
+    .diagnosis-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .diagnosis-card.black-spots .diagnosis-title {
+      color: #92400e;
+    }
+
+    .diagnosis-card.clean .diagnosis-title {
+      color: #166534;
+    }
+
+    .diagnosis-score {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .score-highlight {
+      font-weight: 700;
+      color: var(--primary-hover);
+    }
+
+    .score-note {
+      font-size: 0.8rem;
+      color: var(--text-light);
+      background: rgba(0, 0, 0, 0.04);
+      padding: 4px 8px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-top: 4px;
+    }
+
+    /* 청소 가이드 단계 목록 */
+    .guide-section {
+      margin-top: 20px;
+    }
+
+    .guide-header {
+      font-size: 1.12rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .steps-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+      transition: var(--transition);
+    }
+
+    .step-item:hover {
+      border-color: #93c5fd;
+      background: #fafcff;
+    }
+
+    .step-index {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      height: 24px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-radius: 50%;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .step-text {
+      font-size: 0.95rem;
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    /* 재질별 팁 및 안전 수칙 알림 박스 */
+    .tip-box {
+      background: #f0fdfa;
+      border-left: 4px solid #0d9488;
+      padding: 14px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+      color: #134e4a;
+      line-height: 1.55;
+    }
+
+    .tip-box strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #0f766e;
+    }
+
+    .warning-box {
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 14px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 0.88rem;
+      color: #78350f;
+      line-height: 1.55;
+    }
+
+    .warning-box strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #b45309;
+    }
+
+    .disclaimer-box {
+      background: #f1f5f9;
+      border: 1px dashed #cbd5e1;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      color: var(--text-light);
+      line-height: 1.5;
+    }
+
+    /* 하단 푸터 */
+    footer {
+      text-align: center;
+      color: var(--text-light);
+      padding: 24px 20px;
+      font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.6);
+      margin-top: auto;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <div class="brand">
+        <div class="brand-title">
+          CLEAN:ON
+          <span class="brand-badge">ResNet18</span>
+        </div>
+        <div class="brand-desc">화장실 오염 사진 분석 및 재질 맞춤 안전 청소 가이드</div>
+      </div>
+      <div class="model-badge" id="systemStatusBadge">
+        <span class="status-dot"></span>
+        <span id="systemStatusText">AI 모델 연결 준비 완료</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1단계: 사진 업로드 -->
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">
+            <span class="step-num">1</span>
+            오염 부위 사진 업로드
+          </h2>
+          <p class="panel-subtitle">오염이 발생한 욕실 표면을 가까이서 선명하게 촬영해 주세요.</p>
+        </div>
+      </div>
+
+      <label class="upload-box" id="dropArea" for="photo">
+        <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
+        <span class="upload-main-text" id="uploadLabelText">클릭하여 사진 선택 또는 드래그 앤 드롭</span>
+        <span class="upload-sub-text">JPG, PNG 파일 지원 (최대 5MB)</span>
+        <input id="photo" type="file" accept="image/jpeg,image/png,image/jpg,.jpg,.jpeg,.png">
+      </label>
+
+      <div id="previewContainer" class="preview-container hidden">
+        <img id="preview" alt="선택한 사진 미리보기">
+        <div class="preview-actions">
+          <button type="button" class="btn-secondary" id="removePhotoBtn">사진 변경 / 삭제</button>
+        </div>
+      </div>
+
+      <p id="fileError" class="error-msg hidden" role="alert"></p>
+    </section>
+
+    <!-- 2단계: 재질 선택 -->
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">
+            <span class="step-num">2</span>
+            표면 재질 선택
+          </h2>
+          <p class="panel-subtitle">오염이 위치한 부위의 표면 재질을 선택하세요. 재질별 맞춤 청소법이 적용됩니다.</p>
+        </div>
+      </div>
+
+      <div class="choices-grid">
+        <label class="choice-card">
+          <input type="radio" name="material" value="silicone">
+          <span class="choice-icon">🪟</span>
+          <span class="choice-title">실리콘</span>
+          <span class="choice-desc">욕조 모서리, 세면대 둘레 등 말랑한 마감재</span>
+        </label>
+        <label class="choice-card">
+          <input type="radio" name="material" value="tile">
+          <span class="choice-icon">🧱</span>
+          <span class="choice-title">타일</span>
+          <span class="choice-desc">벽면, 바닥의 매끄러운 자기질·도기질 타일</span>
+        </label>
+        <label class="choice-card">
+          <input type="radio" name="material" value="grout">
+          <span class="choice-icon">📏</span>
+          <span class="choice-title">줄눈</span>
+          <span class="choice-desc">타일 사이의 백시멘트 또는 줄눈 코팅 틈새</span>
+        </label>
+      </div>
+
+      <button id="analyze" class="btn-primary" disabled>
+        <span id="btnIcon">🔍</span>
+        <span id="btnText">오염 분석하기</span>
+      </button>
+    </section>
+
+    <!-- 3단계: 분석 결과 및 가이드 -->
+    <section id="result" class="panel hidden" aria-live="polite"></section>
+  </main>
+
+  <footer>
+    <p>본 서비스는 20장의 제한된 데이터셋으로 학습된 모델을 활용하며, 오염 종류나 유해성을 확정 진단하지 않습니다.</p>
+    <p style="margin-top:4px; font-size:0.78rem;">안전을 위해 세제 사용 전 반드시 제품 표시사항과 환기 수칙을 준수하세요.</p>
+  </footer>
+
+  <script>
+    // DOM 엘리먼트 참조 (기존 ID 유지)
+    const photo = document.querySelector('#photo');
+    const preview = document.querySelector('#preview');
+    const previewContainer = document.querySelector('#previewContainer');
+    const button = document.querySelector('#analyze');
+    const btnText = document.querySelector('#btnText');
+    const btnIcon = document.querySelector('#btnIcon');
+    const result = document.querySelector('#result');
+    const error = document.querySelector('#fileError');
+    const dropArea = document.querySelector('#dropArea');
+    const removePhotoBtn = document.querySelector('#removePhotoBtn');
+    const systemStatusText = document.querySelector('#systemStatusText');
+
+    let currentFile = null;
+    let previewUrl = null;
+
+    // 클라이언트 기본 청소 가이드 백업
+    const fallbackGuides = {
+      silicone: {
+        title: '실리콘',
+        steps: [
+          '창문을 열거나 환풍기를 켜고 반드시 고무장갑과 마스크를 착용하세요.',
+          '마른 천으로 실리콘 표면의 물기를 완전히 제거합니다.',
+          '실리콘 전용 젤 세정제 또는 락스를 적신 휴지를 부착하고 1~2시간 이상 방치합니다.',
+          '부드러운 스펀지로 닦아내고 미온수로 충분히 헹굽니다. (철수세미 사용 금지)',
+          '깊게 착색된 경우 표면 세척으로 제거되지 않으므로 실리콘 재시공을 권장합니다.'
+        ]
+      },
+      tile: {
+        title: '타일',
+        steps: [
+          '환기 상태를 확인하고 보호장갑을 착용하세요.',
+          '먼지와 가벼운 물때를 미온수로 1차 세척합니다.',
+          '욕실용 중성세제 또는 타일 클리너를 고르게 분사 후 5~10분간 불립니다.',
+          '부드러운 솔이나 스펀지로 닦아낸 후 깨끗한 물로 헹굽니다.',
+          '스퀴지(물기제거기)로 물기를 닦아 건조 상태를 유지하세요.'
+        ]
+      },
+      grout: {
+        title: '줄눈',
+        steps: [
+          '환풍기를 켜고 보호장갑과 마스크를 착용하세요.',
+          '줄눈 부위에 물을 적시고 중성세제 또는 베이킹소다 페이스트를 바릅니다.',
+          '부드러운 칫솔로 줄눈 결을 따라 조심스럽게 문질러 청소합니다.',
+          '맑은 물로 꼼꼼히 헹구고 완전히 건조시킵니다.',
+          '시멘트 줄눈이 부식되거나 떨어진 경우 줄눈 보수제를 사용하세요.'
+        ]
+      }
+    };
+
+    // 서버 모델 상태 초기 확인
+    async function checkServerStatus() {
+      try {
+        const res = await fetch('/api/status');
+        if (res.ok) {
+          const st = await res.json();
+          if (st.model_loaded) {
+            systemStatusText.textContent = 'ResNet18 모델 준비 완료';
+          } else {
+            systemStatusText.textContent = '데모 모드 (모델 미탑재)';
+          }
+        }
+      } catch (e) {
+        systemStatusText.textContent = '연결 상태 확인 중';
+      }
+    }
+    checkServerStatus();
+
+    // 폼 유효성 검사
+    function validate() {
+      const hasMaterial = !!document.querySelector('input[name=material]:checked');
+      button.disabled = !(currentFile && hasMaterial);
+    }
+
+    // 파일 선택 및 유효성 검사 처리
+    function handleFile(f) {
+      error.textContent = '';
+      error.classList.add('hidden');
+      currentFile = null;
+
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        previewUrl = null;
+      }
+      previewContainer.classList.add('hidden');
+      result.classList.add('hidden');
+
+      if (!f) {
+        validate();
+        return;
+      }
+
+      const isImg = ['image/jpeg', 'image/png', 'image/jpg'].includes(f.type) || /\.(jpe?g|png)$/i.test(f.name);
+      if (!isImg || f.size > 5 * 1024 * 1024) {
+        error.textContent = 'JPG 또는 PNG 형식의 5MB 이하 사진 파일만 업로드할 수 있습니다.';
+        error.classList.remove('hidden');
+        photo.value = '';
+        validate();
+        return;
+      }
+
+      currentFile = f;
+      previewUrl = URL.createObjectURL(f);
+      preview.src = previewUrl;
+      previewContainer.classList.remove('hidden');
+      validate();
+    }
+
+    photo.addEventListener('change', () => {
+      handleFile(photo.files[0]);
+    });
+
+    removePhotoBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      photo.value = '';
+      handleFile(null);
+    });
+
+    // 드래그 앤 드롭 지원
+    dropArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropArea.classList.add('dragover');
+    });
+
+    dropArea.addEventListener('dragleave', () => {
+      dropArea.classList.remove('dragover');
+    });
+
+    dropArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropArea.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    // 재질 변경 이벤트
+    document.querySelectorAll('input[name=material]').forEach(el => {
+      el.addEventListener('change', validate);
+    });
+
+    // 분석 요청 처리
+    button.addEventListener('click', async () => {
+      const materialInput = document.querySelector('input[name=material]:checked');
+      const material = materialInput ? materialInput.value : null;
+
+      if (!currentFile || !material) return;
+
+      button.disabled = true;
+      btnIcon.innerHTML = '<span class="spinner"></span>';
+      btnText.textContent = 'AI 분석 진행 중...';
+
+      result.classList.remove('hidden');
+      result.innerHTML = '<div style="text-align:center; padding:24px; color:#64748b;"><span class="spinner" style="display:inline-block; border-color:#0284c7 rgba(2,132,199,0.2) rgba(2,132,199,0.2) rgba(2,132,199,0.2); width:28px; height:28px; margin-bottom:12px;"></span><p>ResNet18 모델로 이미지 특징을 분석하고 있습니다...</p></div>';
+      result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      let data;
+      try {
+        const formData = new FormData();
+        formData.append('image', currentFile);
+        formData.append('material', material);
+
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error(`서버 응답 오류 (HTTP ${response.status})`);
+        }
+        data = await response.json();
+      } catch (err) {
+        console.warn('API 호출 실패, 데모 모드로 전환:', err);
+        data = {
+          mode: 'demo',
+          status: 'demo',
+          label: null,
+          label_name: '데모 모드 (AI 모델 미적용)',
+          confidence: null,
+          confidence_percent: null,
+          material: material,
+          material_name: fallbackGuides[material]?.title || material,
+          message: '분석 서버 연결 또는 모델을 사용할 수 없어 기본 안내 가이드만 제공합니다.',
+          guide: {
+            title: fallbackGuides[material]?.title || material,
+            description: '일반적인 욕실 표면 청소 안내입니다.',
+            steps: fallbackGuides[material]?.steps || [],
+            material_tip: '환기를 유지하고 마스크와 고무장갑을 착용한 뒤 작업하세요.',
+            safety_warning: '안전 수칙: 염소계 표백제(락스)는 산성 세제·식초·암모니아와 절대 혼합하지 마세요.'
+          },
+          disclaimer: '데모 모드: 실제 사진 분석이 수행되지 않았으며 일반 참고용 가이드입니다.'
+        };
+      }
+
+      renderResult(data, material);
+
+      button.disabled = false;
+      btnIcon.textContent = '🔄';
+      btnText.textContent = '다시 분석하기';
+    });
+
+    // 결과 렌더링 함수
+    function renderResult(data, material) {
+      result.replaceChildren();
+
+      const isModel = (data.mode === 'model' && data.label);
+      const isBlackSpots = (data.label === 'black_spots');
+      const isClean = (data.label === 'clean');
+
+      // 1. 헤더 영역 (제목 + 모드 뱃지)
+      const badgeBar = document.createElement('div');
+      badgeBar.className = 'result-badge-bar';
+
+      const h2 = document.createElement('h2');
+      h2.className = 'panel-title';
+      h2.innerHTML = '<span class="step-num">3</span> 분석 결과 및 맞춤 가이드';
+      badgeBar.appendChild(h2);
+
+      const tag = document.createElement('span');
+      if (isModel) {
+        tag.className = 'mode-tag model';
+        tag.innerHTML = '🤖 ResNet18 AI 분석 모드';
+      } else if (data.mode === 'error') {
+        tag.className = 'mode-tag error';
+        tag.innerHTML = '⚠️ 오류 발생 (데모 가이드)';
+      } else {
+        tag.className = 'mode-tag demo';
+        tag.innerHTML = 'ℹ️ 데모 모드 (모델 미적용)';
+      }
+      badgeBar.appendChild(tag);
+      result.appendChild(badgeBar);
+
+      // 2. 오염 판정 진단 카드
+      const diagCard = document.createElement('div');
+      if (isModel) {
+        diagCard.className = `diagnosis-card ${isBlackSpots ? 'black-spots' : 'clean'}`;
+      } else {
+        diagCard.className = 'diagnosis-card demo';
+      }
+
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'diagnosis-icon';
+      if (isModel) {
+        iconSpan.textContent = isBlackSpots ? '🔍' : '✨';
+      } else {
+        iconSpan.textContent = '📋';
+      }
+      diagCard.appendChild(iconSpan);
+
+      const detailsDiv = document.createElement('div');
+      detailsDiv.className = 'diagnosis-details';
+
+      const diagTitle = document.createElement('div');
+      diagTitle.className = 'diagnosis-title';
+      if (isModel) {
+        diagTitle.textContent = isBlackSpots ? '검은 점상 오염 패턴 유사' : '정상 상태 (오염 패턴 적음)';
+      } else {
+        diagTitle.textContent = data.label_name || '데모 모드 청소 안내';
+      }
+      detailsDiv.appendChild(diagTitle);
+
+      // 점수 안내 (주의: 20장 소규모 학습이므로 '실제 정확도'가 아닌 '모델 분류 점수/유사도'로 표시)
+      if (isModel && data.confidence_percent !== null) {
+        const scoreP = document.createElement('div');
+        scoreP.className = 'diagnosis-score';
+        scoreP.innerHTML = `모델 분류 점수: <span class="score-highlight">${data.confidence_percent}%</span>`;
+        detailsDiv.appendChild(scoreP);
+
+        const noteP = document.createElement('div');
+        noteP.className = 'score-note';
+        noteP.textContent = '※ 20장 표본 기반 패턴 분류 점수이며, 실제 진단 정확도를 뜻하지 않습니다.';
+        detailsDiv.appendChild(noteP);
+      } else {
+        const msgP = document.createElement('div');
+        msgP.className = 'diagnosis-score';
+        msgP.textContent = data.message || '실제 AI 추론 결과가 아니며 일반 재질 청소법을 안내합니다.';
+        detailsDiv.appendChild(msgP);
+      }
+
+      diagCard.appendChild(detailsDiv);
+      result.appendChild(diagCard);
+
+      // 3. 재질 맞춤 청소 단계 가이드
+      const guideSection = document.createElement('div');
+      guideSection.className = 'guide-section';
+
+      const guideTitle = document.createElement('h3');
+      guideTitle.className = 'guide-header';
+      const mName = data.material_name || fallbackGuides[material]?.title || '선택한 재질';
+      guideTitle.innerHTML = `🧼 <strong>${mName}</strong> 맞춤 청소 단계`;
+      guideSection.appendChild(guideTitle);
+
+      const stepsOl = document.createElement('ol');
+      stepsOl.className = 'steps-list';
+
+      const steps = data.guide?.steps || fallbackGuides[material]?.steps || [];
+      steps.forEach((s, idx) => {
+        const li = document.createElement('li');
+        li.className = 'step-item';
+        li.innerHTML = `
+          <span class="step-index">${idx + 1}</span>
+          <span class="step-text">${s}</span>
+        `;
+        stepsOl.appendChild(li);
+      });
+      guideSection.appendChild(stepsOl);
+      result.appendChild(guideSection);
+
+      // 4. 재질 & 오염 상태별 상세 팁
+      const tipText = data.guide?.material_tip;
+      if (tipText) {
+        const tipBox = document.createElement('div');
+        tipBox.className = 'tip-box';
+        tipBox.innerHTML = `<strong>💡 ${mName} 관리 팁</strong>${tipText}`;
+        result.appendChild(tipBox);
+      }
+
+      // 5. 핵심 안전 수칙 박스 (락스 혼합 금지 등)
+      const warningBox = document.createElement('div');
+      warningBox.className = 'warning-box';
+      const warningMsg = data.guide?.safety_warning || '안전 수칙: 환기를 유지하고 보호장갑을 착용하세요. 염소계 표백제(락스)를 산성 세제·식초·암모니아와 절대 혼합하지 마세요.';
+      warningBox.innerHTML = `<strong>⚠️ 화학 세제 취급 안전 수칙</strong>${warningMsg}`;
+      result.appendChild(warningBox);
+
+      // 6. 주의 사항 안내문 (20장 소규모 모델 확정 진단 불가 안내)
+      const disclaimerBox = document.createElement('div');
+      disclaimerBox.className = 'disclaimer-box';
+      disclaimerBox.textContent = data.disclaimer || '주의: 학습 사진이 총 20장으로 제한되어 있어 모델의 예측 점수를 실제 정확도로 해석할 수 없으며 오염 종류를 확정 진단하지 않습니다. 실제 시공이나 작업 시 현장 상태를 우선 고려하세요.';
+      result.appendChild(disclaimerBox);
+
+      result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  </script>
+</body>
+</html>
